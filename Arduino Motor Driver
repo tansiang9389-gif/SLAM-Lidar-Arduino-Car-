@@ -1,0 +1,131 @@
+/*
+   Arduino Motor Controller (ESP32 + Bluetooth RC App)
+   ---------------------------------------------------
+   - Accepts text commands from ESP32 (over Serial):
+       "FWD", "BACK", "LEFT", "RIGHT", "STOP", "SPEED,x"
+   - Accepts single-character commands from Bluetooth RC Car app:
+       'F' Forward
+       'B' Backward
+       'L' Left
+       'R' Right
+       'S' Stop
+       'I','G','J','H' Diagonal moves
+       'V' Buzzer ON, 'v' Buzzer OFF
+*/
+
+const int BUZZER = 4;
+
+// Motor driver pins (adapt to your H-bridge wiring)
+const int L_DIR = 12;
+const int L_PWM = 10;
+const int R_DIR = 13;
+const int R_PWM = 11;
+
+int baseSpeed = 200;  // default PWM duty (0–255)
+
+void setup() {
+  Serial.begin(115200);  // from ESP32 OR Bluetooth module
+  pinMode(BUZZER, OUTPUT);
+  pinMode(L_DIR, OUTPUT);
+  pinMode(R_DIR, OUTPUT);
+  pinMode(L_PWM, OUTPUT);
+  pinMode(R_PWM, OUTPUT);
+  stopMotors();
+  Serial.println("Arduino motor controller ready (ESP32 + Bluetooth RC)");
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+
+    if (cmd.length() == 1) {
+      // Single-character command (Bluetooth RC car app)
+      char c = cmd.charAt(0);
+      handleBtCommand(c);
+    } else if (cmd.length() > 1) {
+      // Text command (ESP32)
+      handleEsp32Command(cmd);
+    }
+  }
+}
+
+// ================== COMMAND HANDLERS ==================
+
+void handleBtCommand(char c) {
+  Serial.print("BT Cmd: ");
+  Serial.println(c);
+
+  switch (c) {
+    case 'F': moveForward(); break;
+    case 'B': moveBackward(); break;
+    case 'L': turnLeft(); break;
+    case 'R': turnRight(); break;
+    case 'S': stopMotors(); break;
+    case 'I': // forward-right
+      digitalWrite(L_DIR, LOW); analogWrite(L_PWM, 150);
+      digitalWrite(R_DIR, HIGH); analogWrite(R_PWM, 255);
+      break;
+    case 'G': // forward-left
+      digitalWrite(L_DIR, LOW); analogWrite(L_PWM, 255);
+      digitalWrite(R_DIR, HIGH); analogWrite(R_PWM, 150);
+      break;
+    case 'J': // back-right
+      digitalWrite(L_DIR, HIGH); analogWrite(L_PWM, 150);
+      digitalWrite(R_DIR, LOW);  analogWrite(R_PWM, 255);
+      break;
+    case 'H': // back-left
+      digitalWrite(L_DIR, HIGH); analogWrite(L_PWM, 255);
+      digitalWrite(R_DIR, LOW);  analogWrite(R_PWM, 150);
+      break;
+    case 'V': digitalWrite(BUZZER, HIGH); break;
+    case 'v': digitalWrite(BUZZER, LOW);  break;
+  }
+}
+
+void handleEsp32Command(String cmd) {
+  Serial.print("ESP32 Cmd: ");
+  Serial.println(cmd);
+
+  if (cmd.equalsIgnoreCase("FWD")) moveForward();
+  else if (cmd.equalsIgnoreCase("BACK")) moveBackward();
+  else if (cmd.equalsIgnoreCase("LEFT")) turnLeft();
+  else if (cmd.equalsIgnoreCase("RIGHT")) turnRight();
+  else if (cmd.equalsIgnoreCase("STOP")) stopMotors();
+  else if (cmd.startsWith("SPEED,")) {
+    int val = cmd.substring(6).toInt();
+    if (val < 0) val = 0;
+    if (val > 255) val = 255;
+    baseSpeed = val;
+    Serial.print("Speed set to "); Serial.println(baseSpeed);
+  } else {
+    Serial.println("Unknown ESP32 command");
+  }
+}
+
+// ================== MOTOR FUNCTIONS ==================
+
+void moveForward() {
+  digitalWrite(L_DIR, LOW);  analogWrite(L_PWM, baseSpeed);
+  digitalWrite(R_DIR, HIGH); analogWrite(R_PWM, baseSpeed);
+}
+
+void moveBackward() {
+  digitalWrite(L_DIR, HIGH); analogWrite(L_PWM, baseSpeed);
+  digitalWrite(R_DIR, LOW);  analogWrite(R_PWM, baseSpeed);
+}
+
+void turnLeft() {
+  digitalWrite(L_DIR, HIGH); analogWrite(L_PWM, baseSpeed);
+  digitalWrite(R_DIR, HIGH); analogWrite(R_PWM, baseSpeed);
+}
+
+void turnRight() {
+  digitalWrite(L_DIR, LOW);  analogWrite(L_PWM, baseSpeed);
+  digitalWrite(R_DIR, LOW);  analogWrite(R_PWM, baseSpeed);
+}
+
+void stopMotors() {
+  analogWrite(L_PWM, 0);
+  analogWrite(R_PWM, 0);
+}
