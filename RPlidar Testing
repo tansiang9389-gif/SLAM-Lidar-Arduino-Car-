@@ -1,0 +1,137 @@
+//Connect RPlidar to PC, test
+//Install the RPlidar Ros
+//Use this code
+
+import socket
+from rplidar import RPLidar
+import matplotlib.pyplot as plt
+import numpy as np
+import threading
+import tkinter as tk
+from tkinter import filedialog
+import csv
+
+# =======================
+# SETTINGS
+# =======================
+# RPLidar serial port
+PORT_NAME = 'COM5'   # Windows example
+# PORT_NAME = '/dev/ttyUSB0'  # Linux example
+
+# ESP32 settings
+ESP32_IP = "192.168.1.123"   # change to your ESP32 IP (check Serial Monitor)
+ESP32_PORT = 80
+
+
+# =======================
+# GLOBAL STORAGE
+# =======================
+mapping_data = []  # will store (x, y, angle, distance)
+
+
+# =======================
+# ROBOT COMMAND FUNCTIONS
+# =======================
+def send_command(cmd):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((ESP32_IP, ESP32_PORT))
+        s.sendall((cmd + "\n").encode())
+        s.close()
+        print(f"Sent command: {cmd}")
+    except Exception as e:
+        print("Error sending command:", e)
+
+
+# =======================
+# LIDAR PLOTTING THREAD
+# =======================
+def lidar_view():
+    global mapping_data
+    lidar = RPLidar(PORT_NAME)
+    plt.ion()
+    fig, ax = plt.subplots(figsize=(6, 6))
+    scan_plot, = ax.plot([], [], 'bo', markersize=2)
+    ax.set_xlim(-4000, 4000)
+    ax.set_ylim(-4000, 4000)
+    ax.set_title("RPLidar A1 Live Scan + Robot Control")
+    ax.set_xlabel("X (mm)")
+    ax.set_ylabel("Y (mm)")
+
+    try:
+        for scan in lidar.iter_scans():
+            xs, ys = [], []
+            for (_, angle, distance) in scan:
+                angle_rad = np.deg2rad(angle)
+                x = distance * np.cos(angle_rad)
+                y = distance * np.sin(angle_rad)
+                xs.append(x)
+                ys.append(y)
+                mapping_data.append((x, y, angle, distance))  # store data
+            scan_plot.set_xdata(xs)
+            scan_plot.set_ydata(ys)
+            plt.draw()
+            plt.pause(0.001)
+    except KeyboardInterrupt:
+        print("Stopping Lidar...")
+    finally:
+        lidar.stop()
+        lidar.disconnect()
+
+
+# =======================
+# EXPORT FUNCTION
+# =======================
+def export_data():
+    global mapping_data
+    if not mapping_data:
+        print("No mapping data to export!")
+        return
+
+    # Ask where to save file
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        filetypes=[("CSV Files", "*.csv"), ("Text Files", "*.txt")]
+    )
+    if not file_path:
+        return
+
+    # Save CSV
+    with open(file_path, mode="w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["X_mm", "Y_mm", "Angle_deg", "Distance_mm"])
+        writer.writerows(mapping_data)
+
+    print(f"Mapping data exported to {file_path}")
+
+
+# =======================
+# GUI WITH BUTTONS
+# =======================
+def start_gui():
+    root = tk.Tk()
+    root.title("Robot Control Panel")
+
+    # Control buttons
+    tk.Button(root, text="Forward (W)", command=lambda: send_command("FWD"), width=20).pack(pady=5)
+    tk.Button(root, text="Backward (S)", command=lambda: send_command("BACK"), width=20).pack(pady=5)
+    tk.Button(root, text="Left (A)", command=lambda: send_command("LEFT"), width=20).pack(pady=5)
+    tk.Button(root, text="Right (D)", command=lambda: send_command("RIGHT"), width=20).pack(pady=5)
+    tk.Button(root, text="Stop (X)", command=lambda: send_command("STOP"), width=20).pack(pady=5)
+
+    # Export button
+    tk.Button(root, text="Export Mapping Data", command=export_data, bg="lightgreen", width=25).pack(pady=10)
+
+    root.mainloop()
+
+
+# =======================
+# MAIN PROGRAM
+# =======================
+if __name__ == "__main__":
+    # Run lidar in background thread
+    t = threading.Thread(target=lidar_view, daemon=True)
+    t.start()
+
+    # Start GUI
+    start_gui()
