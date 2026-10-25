@@ -1,0 +1,6 @@
+ros_ws/build/
+ros_ws/install/
+ros_ws/log/
+ros_ws/src/kaiaai_msgs/
+__pycache__/
+*.pyc
