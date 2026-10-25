@@ -104,6 +104,7 @@ S3 pinout or every hardware revision.
 | [`firmware`](firmware/README.md) | S3 configuration reference and explicit firmware provenance limits |
 | [`docs/project-conclusion.md`](docs/project-conclusion.md) | Retrospective, evidence limits, and improvements |
 | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Upstream credits, licensing, and modification notices |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history and changes in the published portfolio |
 
 **Exact flashed firmware source is unavailable in this release.** The surviving
 local source contains later, unflashed changes, so I have not presented it as a
