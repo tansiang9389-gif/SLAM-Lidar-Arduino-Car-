@@ -1,0 +1,94 @@
+# Local modification: reference-only S3 pin, geometry and per-wheel encoder profile.
+# Hand turns identified opposite physical left/right encoder channels on
+# the replacement S3. Powered turns were reversed with zeroed keyboard input.
+# MakerHub/Smith3D N16R8: owner reports the Freenove S3 camera pinout applies.
+# Camera: SIOD=4 SIOC=5 VSYNC=6 HREF=7 XCLK=15 PCLK=13.
+# Camera: Y2=11 Y3=9 Y4=8 Y5=10 Y6=12 Y7=18 Y8=17 Y9=16.
+# Sensor and its reset/power wiring are unknown; camera GPIOs are reserved.
+# No microSD: GPIO38-40 are borrowed. External JTAG uses GPIO39-42.
+# GPIO2 is the onboard LED; GPIO48 is the WS2812 input. Both are borrowed.
+# BOOT GPIO0 uses the S3 sketch's internal pull-up for normal startup.
+# Owner removed the encoder A/B 10k pull-ups and LiDAR UART/MOTOCTL 1k
+# series resistors. LiDAR TX was measured at <=3.3V; MOTOCTL was checked
+# for 3.3V compatibility. Per-channel counts remain provisional; no powered
+# validation of this corrected profile or camera test has been completed.
+# Keep motor battery off until this profile is installed and checked.
+#
+board:
+  manufacturer: MakerHub/Smith3D
+  model: SLAM-CAR-MAKERHUB-S3-N16R8
+  version: operator-matched-v1
+lidar:
+  model: SLAMTEC RPLIDAR A1
+  gpio:
+# KaiaAI's tx is the MCU RX (LiDAR TX); rx is the MCU TX (LiDAR RX).
+    tx: 41
+    rx: 42
+    pwm: 2
+    en: 255
+  scan:
+    freq:
+      target: 5.0
+led:
+  system:
+    driver:
+      type: direct
+      gpio: 255
+      invert: false
+button:
+  boot:
+    gpio: 0
+    invert: true
+monitor:
+  gpio:
+    tx: 43
+  baud: 115200
+motor:
+  driver:
+    type: IN1_IN2
+    pid:
+      period: 0.03
+      kp: 0.001
+      ki: 0.003
+      kd: 0
+      kpm: 0
+# Shared PPR is the legacy fallback. Wheel-specific values follow the
+# observed GPIO channels, but return-to-mark trials did not validate PPR.
+  encoder:
+    type: AB_QUAD
+    ppr: 1035
+  left:
+    encoder:
+      ppr: 462.125
+      reverse: true
+      gpio:
+        a: 21
+        b: 48
+    driver:
+      reverse: true
+      gpio:
+        in1: 40
+        in2: 47
+  right:
+    encoder:
+      ppr: 629.083333
+      reverse: true
+      gpio:
+        a: 1
+        b: 14
+    driver:
+      reverse: true
+      gpio:
+        in1: 38
+        in2: 39
+  rpm:
+    max: 100
+adc:
+  battery:
+    gpio: 255
+base:
+  wheel:
+    track: 0.128
+    diameter: 0.065
+    accel:
+      max: 0.5
